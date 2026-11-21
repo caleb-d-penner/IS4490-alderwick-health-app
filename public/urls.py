@@ -6,6 +6,7 @@ app_name = "public"
 
 urlpatterns = [
     path("", views.home, name="home"),
+    path("chat/", views.website_chat, name="website_chat"),
     path("providers/", views.provider_list, name="provider_list"),
     path("providers/<slug:slug>/", views.provider_detail, name="provider_detail"),
     path("locations/", views.location_list, name="location_list"),

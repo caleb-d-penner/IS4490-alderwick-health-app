@@ -1,14 +1,28 @@
+import json
+
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 from django.utils import timezone
 
 from audit.models import AuditLog
 from audit.utils import log_event
 from clinic.models import InsurancePlan, Office, PolicyDocument, Provider, Specialty
 from clinic.services import available_slots, next_available_slot
+from clinic import gemini
 
 from .forms import AppointmentRequestForm
+
+
+CHAT_SYSTEM_INSTRUCTION = """You are Alderwick Family Health's website assistant. Help visitors with general,
+non-clinical questions about finding a provider, locations, appointment requests, insurance, patient resources,
+and the patient portal. Be concise, warm, and accurate. Do not diagnose, provide treatment advice, or interpret
+symptoms. Do not ask for or repeat private health information, account details, or identifying details. For urgent
+or emergency symptoms, tell the visitor to call 911 or seek emergency care. If a question needs staff help, suggest
+calling Alderwick Family Health or requesting an appointment. Do not claim to have booked appointments or accessed
+patient records."""
 
 
 def home(request):
@@ -22,6 +36,32 @@ def home(request):
         "accepting_count": Provider.objects.filter(is_active=True, accepting_new_patients=True).count(),
     }
     return render(request, "public/home.html", context)
+
+
+@require_POST
+def website_chat(request):
+    """Provide a safe, public-facing Gemini response without exposing the API key."""
+    try:
+        payload = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "Please send a valid message."}, status=400)
+    if not isinstance(payload, dict):
+        return JsonResponse({"error": "Please send a valid message."}, status=400)
+
+    message = str(payload.get("message", "")).strip()
+    if not message:
+        return JsonResponse({"error": "Please enter a message."}, status=400)
+    if len(message) > 1200:
+        return JsonResponse({"error": "Please keep your message to 1,200 characters or fewer."}, status=400)
+
+    try:
+        reply = gemini.generate_text(message, system_instruction=CHAT_SYSTEM_INSTRUCTION)
+    except gemini.GeminiError:
+        return JsonResponse(
+            {"error": "The assistant is unavailable right now. Please call us or try again shortly."}, status=503
+        )
+
+    return JsonResponse({"reply": reply.strip() or "I’m sorry, I couldn’t generate a response. Please try again."})
 
 
 def _all_languages():

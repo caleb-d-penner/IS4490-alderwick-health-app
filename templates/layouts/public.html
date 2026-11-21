@@ -37,6 +37,31 @@
   </div>
   {% endblock %}
 </main>
+<aside class="chatbot" aria-label="Alderwick website assistant">
+  <button class="chatbot-launcher" id="chatbot-launcher" type="button" aria-expanded="true" aria-controls="chatbot-panel" aria-label="Open chat with Alderwick">
+    <span aria-hidden="true">●●●</span>
+  </button>
+  <section class="chatbot-panel" id="chatbot-panel" aria-labelledby="assistant-heading">
+    <div class="chatbot-header">
+      <div>
+        <span class="tag tag-brand">Alderwick assistant</span>
+        <h2 id="assistant-heading">How can we help?</h2>
+      </div>
+      <button class="chatbot-close" id="chatbot-close" type="button" aria-label="Close chat">×</button>
+    </div>
+    <p class="chatbot-description">Ask about our services, providers, locations, insurance, or appointments.</p>
+    <p class="chatbot-note"><strong>For emergencies, call 911.</strong> Don’t share private health or account information.</p>
+    <div class="chatbot-messages" id="chatbot-messages" aria-live="polite" aria-label="Conversation with Alderwick assistant">
+      <div class="chatbot-message chatbot-message-assistant">Hello! How can I help you?</div>
+    </div>
+    <form class="chatbot-form" id="chatbot-form" data-url="{% url 'public:website_chat' %}">
+      {% csrf_token %}
+      <label class="sr-only" for="chatbot-input">Ask the Alderwick assistant</label>
+      <textarea class="input" id="chatbot-input" name="message" rows="2" maxlength="1200" placeholder="Type your question…" required></textarea>
+      <button class="btn" id="chatbot-send" type="submit">Send</button>
+    </form>
+  </section>
+</aside>
 <footer class="site-footer">
   <div class="container">
     <div class="grid grid-4">
@@ -74,4 +99,71 @@
     <div class="legal">&copy; {% now "Y" %} Alderwick Family Health. Alderwick Family Health is a fictional organization created for IS 4490 at the University of Utah. All people, records, and data on this site are synthetic.</div>
   </div>
 </footer>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (() => {
+    const form = document.querySelector('#chatbot-form');
+    if (!form) return;
+    const input = document.querySelector('#chatbot-input');
+    const messages = document.querySelector('#chatbot-messages');
+    const send = document.querySelector('#chatbot-send');
+    const launcher = document.querySelector('#chatbot-launcher');
+    const panel = document.querySelector('#chatbot-panel');
+    const close = document.querySelector('#chatbot-close');
+    const chatbot = document.querySelector('.chatbot');
+    const csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    function setChatOpen(isOpen) {
+      panel.hidden = !isOpen;
+      chatbot.classList.toggle('is-collapsed', !isOpen);
+      launcher.setAttribute('aria-expanded', String(isOpen));
+      if (isOpen) input.focus();
+      else launcher.focus();
+    }
+
+    launcher.addEventListener('click', () => setChatOpen(panel.hidden));
+    close.addEventListener('click', () => setChatOpen(false));
+
+    function addMessage(text, role) {
+      const message = document.createElement('div');
+      message.className = `chatbot-message chatbot-message-${role}`;
+      message.textContent = text;
+      messages.appendChild(message);
+      messages.scrollTop = messages.scrollHeight;
+      return message;
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+
+      addMessage(text, 'visitor');
+      input.value = '';
+      input.disabled = true;
+      send.disabled = true;
+      const pending = addMessage('Thinking…', 'assistant chatbot-pending');
+
+      try {
+        const response = await fetch(form.dataset.url, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+          body: JSON.stringify({message: text}),
+        });
+        const data = await response.json();
+        pending.remove();
+        addMessage(data.reply || data.error || 'Something went wrong. Please try again.', 'assistant');
+      } catch (error) {
+        pending.remove();
+        addMessage('I’m unable to connect right now. Please try again shortly.', 'assistant');
+      } finally {
+        input.disabled = false;
+        send.disabled = false;
+        input.focus();
+      }
+    });
+  })();
+</script>
 {% endblock %}
