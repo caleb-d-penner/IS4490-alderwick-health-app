@@ -65,6 +65,8 @@ Optional environment variables:
 
 On your own computer, run `export GEMINI_API_KEY=...` before `runserver`. The `/dev/gemini/` page is not linked from the application and returns 404 when `DJANGO_DEBUG=0`. Send synthetic text only, never real patient information.
 
+Staff can generate AI message-summary reports from the front-office message inbox and clinician inbox. Reports are generated on demand, send conversation subjects and text to Gemini, and remain unpersisted suggestions grouped by the stored issue category and assigned provider. Urgency labels and summaries always require human review; use this only with synthetic demo data.
+
 ## Demo data
 
 `seed_demo_data` loads the whole practice:

@@ -1,0 +1,44 @@
+<div class="page-header">
+  <div>
+    <h1>AI message summaries</h1>
+    <p>Summaries are grouped by issue and assigned doctor. The report includes {{ thread_count }} conversation{{ thread_count|pluralize }} in your queue.</p>
+  </div>
+</div>
+<div class="card" style="margin-bottom: 20px">
+  <div class="card-body">
+    <p><strong>Staff review required:</strong> urgency labels and summaries are AI-generated suggestions, not clinical triage or medical advice. Review each conversation and follow practice procedures for possible emergencies.</p>
+    <p class="muted">Conversation subjects and message text are sent to Gemini when you generate a report. Use this feature only with the project's synthetic demo data; never submit real patient information.</p>
+    <form method="post">
+      {% csrf_token %}
+      <button class="btn" type="submit" {% if not thread_count %}disabled{% endif %}>Generate report with Gemini</button>
+    </form>
+  </div>
+</div>
+{% if error %}
+  <p class="badge badge-danger" role="alert">Report could not be generated: {{ error }}</p>
+{% endif %}
+{% if report_generated %}
+  {% for group in report_groups %}
+    <section class="card" style="margin-bottom: 18px">
+      <div class="card-header">
+        <h2>{{ group.issue }}</h2>
+        <span class="muted">Doctor: {{ group.doctor }}</span>
+      </div>
+      <div class="card-body">
+        {% for item in group.items %}
+          <article style="padding: 12px 0; border-bottom: 1px solid var(--line)">
+            <p>
+              <span class="badge {{ item.badge_class }}">{{ item.urgency|title }}</span>
+              <span class="badge badge-muted">Needs staff review</span>
+            </p>
+            <h3><a href="{% url thread_url_name item.thread.pk %}">{{ item.thread.subject }}</a></h3>
+            <p>{{ item.summary }}</p>
+            <p class="muted">{{ item.thread.get_status_display }} · Updated {{ item.thread.updated_at|date:"M j, Y, g:i A" }}</p>
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+  {% empty %}
+    <div class="card"><div class="card-body"><p>No conversations are available in your queue.</p></div></div>
+  {% endfor %}
+{% endif %}

@@ -7,6 +7,7 @@
 <a class="nav-item {% if name == 'schedule' %}active{% endif %}" href="{% url 'clinician:schedule' %}">Schedule</a>
 <a class="nav-item {% if name == 'patients' or name == 'chart' %}active{% endif %}" href="{% url 'clinician:patients' %}">My patients</a>
 <a class="nav-item {% if name == 'inbox' or name == 'thread' %}active{% endif %}" href="{% url 'clinician:inbox' %}">Patient messages</a>
+<a class="nav-item {% if name == 'message_summary_report' %}active{% endif %}" href="{% url 'clinician:message_summary_report' %}">AI message summaries</a>
 <div class="nav-label">Reference</div>
 <a class="nav-item" href="{% url 'public:resource_list' %}" target="_blank" rel="noopener">Practice policies</a>
 {% endwith %}

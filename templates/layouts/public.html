@@ -37,11 +37,11 @@
   </div>
   {% endblock %}
 </main>
-<aside class="chatbot" aria-label="Alderwick website assistant">
-  <button class="chatbot-launcher" id="chatbot-launcher" type="button" aria-expanded="true" aria-controls="chatbot-panel" aria-label="Open chat with Alderwick">
-    <span aria-hidden="true">●●●</span>
+<aside class="chatbot is-collapsed" aria-label="Alderwick website assistant">
+  <button class="chatbot-launcher" id="chatbot-launcher" type="button" aria-expanded="false" aria-controls="chatbot-panel">
+    Chat with our assistant
   </button>
-  <section class="chatbot-panel" id="chatbot-panel" aria-labelledby="assistant-heading">
+  <section class="chatbot-panel" id="chatbot-panel" aria-labelledby="assistant-heading" hidden>
     <div class="chatbot-header">
       <div>
         <span class="tag tag-brand">Alderwick assistant</span>

@@ -1,4 +1,6 @@
 import datetime
+import json
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
@@ -36,13 +38,14 @@ class ClinicianAccessTests(ClinicianTestCase):
             with self.subTest(role=role):
                 self.client.force_login(make_user(role))
                 self.assertEqual(self.client.get(reverse("clinician:dashboard")).status_code, 403)
+                self.assertEqual(self.client.get(reverse("clinician:message_summary_report")).status_code, 403)
 
     def test_doctor_without_provider_profile_gets_404(self):
         self.client.force_login(make_user("doctor"))
         self.assertEqual(self.client.get(reverse("clinician:dashboard")).status_code, 404)
 
     def test_pages_render(self):
-        for name in ("dashboard", "schedule", "patients", "inbox"):
+        for name in ("dashboard", "schedule", "patients", "inbox", "message_summary_report"):
             with self.subTest(page=name):
                 self.assertEqual(self.client.get(reverse(f"clinician:{name}")).status_code, 200)
 
@@ -202,6 +205,24 @@ class ClinicianMessagingTests(ClinicianTestCase):
         self.assertEqual(threads, [mine])
         self.assertEqual(self.client.get(reverse("clinician:thread", args=[theirs.pk])).status_code, 404)
         self.assertEqual(self.client.get(reverse("clinician:thread", args=[billing.pk])).status_code, 404)
+
+    def test_summary_report_includes_only_my_clinical_threads(self):
+        mine = make_thread(patient=self.patient, category="clinical")
+        theirs = make_thread(patient=self.stranger, category="clinical")
+        billing = make_thread(patient=self.patient, category="billing")
+        response_data = {
+            "threads": [
+                {"thread_id": mine.pk, "urgency": "uncertain", "summary": "Clinical question."},
+            ]
+        }
+
+        with patch("clinic.message_summaries.gemini.generate_text", return_value=json.dumps(response_data)):
+            response = self.client.post(reverse("clinician:message_summary_report"))
+
+        report_items = [item for group in response.context["report_groups"] for item in group["items"]]
+        self.assertEqual([item["thread"].pk for item in report_items], [mine.pk])
+        self.assertNotIn(theirs.pk, [item["thread"].pk for item in report_items])
+        self.assertNotIn(billing.pk, [item["thread"].pk for item in report_items])
 
     def test_reply_and_close(self):
         thread = make_thread(patient=self.patient, category="test_results")

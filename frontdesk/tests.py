@@ -1,4 +1,6 @@
 import datetime
+import json
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
@@ -59,13 +61,14 @@ class FrontDeskAccessTests(FrontDeskTestCase):
             with self.subTest(role=role):
                 self.client.force_login(make_user(role))
                 self.assertEqual(self.client.get(reverse("frontdesk:dashboard")).status_code, 403)
+                self.assertEqual(self.client.get(reverse("frontdesk:message_summary_report")).status_code, 403)
 
     def test_anonymous_redirected(self):
         self.client.logout()
         self.assertEqual(self.client.get(reverse("frontdesk:dashboard")).status_code, 302)
 
     def test_pages_render(self):
-        for name in ("dashboard", "requests", "schedule", "messages", "patient_search"):
+        for name in ("dashboard", "requests", "schedule", "messages", "message_summary_report", "patient_search"):
             with self.subTest(page=name):
                 self.assertEqual(self.client.get(reverse(f"frontdesk:{name}")).status_code, 200)
 
@@ -283,6 +286,28 @@ class FrontDeskMessageTests(FrontDeskTestCase):
         closed = make_thread(patient=self.patient, category="billing", status=MessageThread.Status.CLOSED)
         response = self.client.get(reverse("frontdesk:messages") + "?status=closed")
         self.assertEqual(list(response.context["page"]), [closed])
+
+    def test_summary_report_is_generated_only_for_front_office_threads(self):
+        billing = make_thread(patient=self.patient, category="billing")
+        clinical = make_thread(patient=self.patient, category="clinical")
+        url = reverse("frontdesk:message_summary_report")
+
+        with patch("clinic.message_summaries.gemini.generate_text") as generate_text:
+            response = self.client.get(url)
+            generate_text.assert_not_called()
+        self.assertEqual(response.status_code, 200)
+
+        response_data = {
+            "threads": [
+                {"thread_id": billing.pk, "urgency": "routine", "summary": "Billing question."},
+            ]
+        }
+        with patch("clinic.message_summaries.gemini.generate_text", return_value=json.dumps(response_data)):
+            response = self.client.post(url)
+
+        report_items = [item for group in response.context["report_groups"] for item in group["items"]]
+        self.assertEqual([item["thread"].pk for item in report_items], [billing.pk])
+        self.assertNotIn(clinical.pk, [item["thread"].pk for item in report_items])
 
 
 class PatientLookupTests(FrontDeskTestCase):

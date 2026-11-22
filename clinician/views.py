@@ -11,6 +11,7 @@ from accounts.decorators import role_required
 from accounts.models import User
 from audit.models import AuditLog
 from audit.utils import log_event
+from clinic.message_summary_views import message_summary_report as render_message_summary_report
 from clinic.models import Appointment, LabResult, MessageThread, Patient, Provider, Visit
 from clinic.services import patients_for_provider, provider_can_view_patient, reply_to_thread
 
@@ -235,6 +236,20 @@ def inbox(request):
         request,
         "clinician/inbox.html",
         {"provider": provider, "threads": threads.prefetch_related("messages"), "status": status},
+    )
+
+
+@doctor_required
+def message_summary_report(request):
+    provider = current_provider(request)
+    threads = MessageThread.objects.filter(
+        queue=MessageThread.Queue.CLINICAL, assigned_provider=provider
+    )
+    return render_message_summary_report(
+        request,
+        threads,
+        template_name="clinician/message_summary_report.html",
+        thread_url_name="clinician:thread",
     )
 
 

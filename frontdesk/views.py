@@ -12,6 +12,7 @@ from accounts.decorators import role_required
 from accounts.models import User
 from audit.models import AuditLog
 from audit.utils import log_event
+from clinic.message_summary_views import message_summary_report as render_message_summary_report
 from clinic.models import (
     Appointment,
     AppointmentRequest,
@@ -310,6 +311,17 @@ def message_list(request):
         request,
         "frontdesk/message_list.html",
         {"page": page, "status": status, "category": category, "categories": categories},
+    )
+
+
+@front_office_required
+def message_summary_report(request):
+    threads = MessageThread.objects.filter(queue=MessageThread.Queue.FRONT_OFFICE)
+    return render_message_summary_report(
+        request,
+        threads,
+        template_name="frontdesk/message_summary_report.html",
+        thread_url_name="frontdesk:thread",
     )
 
 

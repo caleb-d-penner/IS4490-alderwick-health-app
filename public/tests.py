@@ -65,6 +65,12 @@ class DirectoryPageTests(TestCase):
         self.assertContains(response, "Alderwick Sandy Clinic")
         self.assertEqual(response.context["provider_count"], 2)
 
+    def test_website_assistant_starts_closed(self):
+        response = self.client.get(reverse("public:home"))
+        self.assertContains(response, '<aside class="chatbot is-collapsed"', html=False)
+        self.assertContains(response, 'aria-expanded="false"', html=False)
+        self.assertContains(response, '<section class="chatbot-panel" id="chatbot-panel" aria-labelledby="assistant-heading" hidden>', html=False)
+
     def test_provider_list_shows_active_providers_with_next_slot(self):
         response = self.client.get(reverse("public:provider_list"))
         self.assertEqual(sorted(self.names(response)), ["Brooks", "Liu"])
